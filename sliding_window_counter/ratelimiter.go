@@ -1,4 +1,4 @@
-package fixwindowlimiter
+package slidingwindowlimiter
 
 import (
 	"sync"
@@ -6,13 +6,15 @@ import (
 )
 
 var (
-	id = 0
+	id     = 0
+	weight = 0.35
 )
 
 type User struct {
 	Id            int
-	CurCount      int
-	MaxWindowSize int
+	PrevCount     float64
+	CurCount      float64
+	MaxWindowSize float64
 	StartTime     time.Time
 	Lock          sync.Mutex
 }
@@ -21,10 +23,12 @@ func NewUser() *User {
 	return &User{
 		Id:            id + 1,
 		CurCount:      0,
+		PrevCount:     0,
 		MaxWindowSize: 5,
 		StartTime:     time.Now(),
 	}
 }
+
 func (u *User) Check() bool {
 	u.Lock.Lock()
 	defer u.Lock.Unlock()
@@ -33,11 +37,12 @@ func (u *User) Check() bool {
 
 	if diff > time.Minute {
 		u.StartTime = curTime
+		u.PrevCount = u.CurCount
 		u.CurCount = 0
 	}
-	if u.CurCount >= u.MaxWindowSize {
+	if u.CurCount+u.PrevCount*(weight) >= u.MaxWindowSize {
 		return false
 	}
-	u.CurCount++
+	u.CurCount+=1
 	return true
 }
