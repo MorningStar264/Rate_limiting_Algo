@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	limiter "ratelimiter/fixed_window_counter"
+	slidingwindowlimiter "ratelimiter/sliding_window_counter"
+	tokenbucket "ratelimiter/token_bucket"
 	"time"
 )
 
@@ -40,14 +42,14 @@ func main() {
 	case "2":
 		client := time.NewTicker(20 * time.Second)
 		done := make(chan bool)
-		bursty:=make(chan int,5)
-		go func(){
-			time.Sleep(time.Minute-time.Second)
-			for i:=0;i<5;i++{
-				bursty<-i
+		bursty := make(chan int, 5)
+		go func() {
+			time.Sleep(time.Minute - time.Second)
+			for i := 0; i < 5; i++ {
+				bursty <- i
 			}
 		}()
-		u := limiter.NewUser()
+		u := slidingwindowlimiter.NewSlider()
 		go func() {
 			for {
 				select {
@@ -73,5 +75,16 @@ func main() {
 		client.Stop()
 		done <- true
 		fmt.Println("client stopped")
+	case "3":
+		bucket := tokenbucket.NewTokenBucket(10, 2)
+		for i := 0; i < 20; i++ {
+			if bucket.AllowRequest(1) {
+				fmt.Printf("[%s] Request %d allowed\n", time.Now().Format("15:04:05"), i)
+			} else {
+				fmt.Printf("[%s] Request %d denied\n", time.Now().Format("15:04:05"), i)
+			}
+			time.Sleep(100 * time.Millisecond)
+
+		}
 	}
 }
